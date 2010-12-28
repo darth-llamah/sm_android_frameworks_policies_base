@@ -497,7 +497,6 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
     if ((keyCode == KeyEvent.KEYCODE_DPAD_CENTER && mTrackballUnlockScreen) ||
-	(keyCode == KeyEvent.KEYCODE_HOLD) ||
         (keyCode == KeyEvent.KEYCODE_MENU && mMenuUnlockScreen) ||
         (keyCode == KeyEvent.KEYCODE_MENU && mEnableMenuKeyInLockScreen)) {
             mCallback.goToUnlockScreen();
@@ -1060,4 +1059,3 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
         }
     }
 }
-
