@@ -41,6 +41,7 @@ import android.widget.*;
 import android.graphics.drawable.Drawable;
 import android.util.Log;
 import android.os.Environment;
+import android.os.Handler;
 import android.os.SystemClock;
 import android.os.SystemProperties;
 import android.provider.Settings;
@@ -143,6 +144,8 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
     private boolean mHideUnlockTab;
     private int mGestureColor;
 
+    Handler mHandler;
+
     /**
      * The status of this lock screen.
      */
@@ -221,6 +224,7 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
             KeyguardUpdateMonitor updateMonitor,
             KeyguardScreenCallback callback) {
         super(context);
+        mHandler = new Handler();
         mLockPatternUtils = lockPatternUtils;
         mUpdateMonitor = updateMonitor;
         mCallback = callback;
@@ -494,12 +498,37 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
         updateStatusLines();
     }
 
+    boolean mHoldPressed;
+
+    Runnable mHoldCallback = new Runnable() {
+        public void run() {
+            mCallback.goToUnlockScreen();
+        }
+    };
+
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
     if ((keyCode == KeyEvent.KEYCODE_DPAD_CENTER && mTrackballUnlockScreen) ||
         (keyCode == KeyEvent.KEYCODE_MENU && mMenuUnlockScreen) ||
         (keyCode == KeyEvent.KEYCODE_MENU && mEnableMenuKeyInLockScreen)) {
             mCallback.goToUnlockScreen();
+        }
+        if (keyCode == KeyEvent.KEYCODE_HOLD) {
+            if (!mHoldPressed) {
+                mHoldPressed = true;
+                mHandler.postDelayed(mHoldCallback, 1000);
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public boolean onKeyUp(int keyCode, KeyEvent event) {
+        if (keyCode == KeyEvent.KEYCODE_HOLD) {
+            if (mHoldPressed) {
+                mHandler.removeCallbacks(mHoldCallback);
+                mHoldPressed = false;
+            }
         }
         return false;
     }
