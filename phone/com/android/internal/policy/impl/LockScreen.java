@@ -127,6 +127,8 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
          Settings.System.TRACKBALL_UNLOCK_SCREEN, 0) == 1);
     private boolean mMenuUnlockScreen = (Settings.System.getInt(mContext.getContentResolver(),
          Settings.System.MENU_UNLOCK_SCREEN, 0) == 1);
+    private boolean mHoldUnlockEnabled = (Settings.System.getInt(mContext.getContentResolver(),
+         Settings.System.HOLD_UNLOCK_SCREEN, 0) == 1);
     private boolean mLockMusicControls = (Settings.System.getInt(mContext.getContentResolver(),
          Settings.System.LOCKSCREEN_MUSIC_CONTROLS, 1) == 1);
     private boolean mLockAlwaysMusic = (Settings.System.getInt(mContext.getContentResolver(),
@@ -513,7 +515,7 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
         (keyCode == KeyEvent.KEYCODE_MENU && mEnableMenuKeyInLockScreen)) {
             mCallback.goToUnlockScreen();
         }
-        if (keyCode == KeyEvent.KEYCODE_HOLD) {
+        if (keyCode == KeyEvent.KEYCODE_HOLD && mHoldUnlockEnabled) {
             if (!mHoldPressed) {
                 mHoldPressed = true;
                 mHandler.postDelayed(mHoldCallback, 1000);
