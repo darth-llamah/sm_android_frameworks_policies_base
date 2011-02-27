@@ -231,7 +231,6 @@ public class PhoneWindowManager implements WindowManagerPolicy {
     
     int mPointerLocationMode = 0;
     PointerLocationView mPointerLocationView = null;
-    Long mTrackballHitTime;
     boolean mVolumeUpPressed;
     boolean mVolumeDownPressed;
     static final long NEXT_DURATION = 400; 
@@ -277,9 +276,6 @@ public class PhoneWindowManager implements WindowManagerPolicy {
     // Behavior of ENDCALL Button.  (See Settings.System.END_BUTTON_BEHAVIOR.)
     int mEndcallBehavior;
 
-    // Behavior of trackball wake
-    boolean mTrackballWakeScreen;
-
     // Behavior of POWER button while in-call and screen on.
     // (See Settings.Secure.INCALL_POWER_BUTTON_BEHAVIOR.)
     int mIncallPowerBehavior;
@@ -289,6 +285,9 @@ public class PhoneWindowManager implements WindowManagerPolicy {
 
     // Nothing to see here, move along...
     int mFancyRotationAnimation;
+
+    // D-Pad Music Controls
+    boolean mDpadMusicControls;
 
     ShortcutManager mShortcutManager;
     PowerManager.WakeLock mBroadcastWakeLock;
@@ -317,8 +316,6 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                     Settings.Secure.DEFAULT_INPUT_METHOD), false, this);
             resolver.registerContentObserver(Settings.System.getUriFor(
                     "fancy_rotation_anim"), false, this);
-            resolver.registerContentObserver(Settings.System.getUriFor(
-                    Settings.System.TRACKBALL_WAKE_SCREEN), false, this);
             updateSettings();
         }
 
@@ -679,8 +676,8 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                     Settings.Secure.INCALL_POWER_BUTTON_BEHAVIOR_DEFAULT);
             mFancyRotationAnimation = Settings.System.getInt(resolver,
                     "fancy_rotation_anim", 0) != 0 ? 0x80 : 0;
-            mTrackballWakeScreen = (Settings.System.getInt(resolver,
-                    Settings.System.TRACKBALL_WAKE_SCREEN, 0) == 1);
+            mDpadMusicControls = (Settings.System.getInt(mContext.getContentResolver(),
+                    Settings.System.LOCKSCREEN_DPAD_MUSIC_CONTROLS, 1) == 1);
             int accelerometerDefault = Settings.System.getInt(resolver,
                     Settings.System.ACCELEROMETER_ROTATION, DEFAULT_ACCELEROMETER_ROTATION);
             if (mAccelerometerDefault != accelerometerDefault) {
@@ -1960,6 +1957,8 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         }
         return false;    
     }
+
+    private boolean mWasMusicActive = false;
  
     /** {@inheritDoc} */
     public int interceptKeyTq(RawInputEvent event, boolean screenIsOn) {
@@ -1989,10 +1988,6 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                 final boolean isKeyDown =
                         (event.type == RawInputEvent.EV_KEY) && (event.value != 0);
 
-                // Detect if the trackball has been pressed
-                boolean isTrackballDown = (event.type == RawInputEvent.EV_KEY)
-                    && (event.value != 0) && (event.scancode == RawInputEvent.BTN_MOUSE);
-
                 final boolean isKeyUp = 
                         (event.type == RawInputEvent.EV_KEY) && (event.value == 0);
                 
@@ -2012,30 +2007,6 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                             && (event.keycode == KeyEvent.KEYCODE_VOLUME_DOWN
                                     || event.keycode == KeyEvent.KEYCODE_VOLUME_UP)) {
                         handleVolumeKeyUp(event.keycode);
-                    }
-                } else if (isTrackballDown && isMusicActive()) {
-                    long time = SystemClock.elapsedRealtime();
-                    if (mTrackballHitTime == null) {
-                        mTrackballHitTime = time;
-                    } else {
-                        long timeBetweenHits;
-                        if (time > mTrackballHitTime) {
-                            timeBetweenHits = time - mTrackballHitTime;
-                        } else {
-                            timeBetweenHits = time + (Long.MAX_VALUE - mTrackballHitTime);
-                        }
-                        if (timeBetweenHits < NEXT_DURATION) {
-                            Intent i = new Intent("com.android.music.musicservicecommand");
-                            i.putExtra("command", "next");
-                            i.putExtra("trackball", true);
-                            mContext.sendBroadcast(i);
-                            
-                            // Force another double-tap for next skip
-                            mTrackballHitTime = null;
-                        }
-                        // Base double-tap off last hit.
-                        else
-                            mTrackballHitTime = time;
                     }
                 }
             }
@@ -2221,6 +2192,27 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                         Log.w(TAG, "VOLUME button: RemoteException from getPhoneInterface()", ex);
                     }
                 }
+            } else if (down && keyguardActive && isMovementKeyTi(code) && mDpadMusicControls && 
+                    (isMusicActive() || mWasMusicActive)) {
+                switch (code) {
+                    case KeyEvent.KEYCODE_DPAD_UP:
+                        handleVolumeKey(AudioManager.STREAM_MUSIC, KeyEvent.KEYCODE_VOLUME_UP);
+                        break;
+                    case KeyEvent.KEYCODE_DPAD_DOWN:
+                        handleVolumeKey(AudioManager.STREAM_MUSIC, KeyEvent.KEYCODE_VOLUME_DOWN);
+                        break;
+                    case KeyEvent.KEYCODE_DPAD_LEFT:
+                        sendMediaButtonEvent(KeyEvent.KEYCODE_MEDIA_PREVIOUS);
+                        break;
+                    case KeyEvent.KEYCODE_DPAD_RIGHT:
+                        sendMediaButtonEvent(KeyEvent.KEYCODE_MEDIA_NEXT);
+                        break;
+                }
+            } else if (down && keyguardActive && code == KeyEvent.KEYCODE_DPAD_CENTER
+                    && (mWasMusicActive || isMusicActive())) {
+                mWasMusicActive = true;
+                sendMediaButtonEvent(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE);
+                result = ACTION_PASS_TO_USER;
             } else if (code == KeyEvent.KEYCODE_HOLD) {
                 result = ACTION_PASS_TO_USER;
                 if (down) {
@@ -2303,11 +2295,11 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         int keycode = event.keycode;
         int scancode = event.scancode;
         int flags = event.flags;
-        if (mTrackballWakeScreen && 
-                (keycode == RawInputEvent.BTN_MOUSE || scancode == RawInputEvent.BTN_MOUSE)) {
+        if (keycode == KeyEvent.KEYCODE_HOLD) {
             flags |= WindowManagerPolicy.FLAG_WAKE;
-        } else if (keycode == KeyEvent.KEYCODE_HOLD) {
-            flags |= WindowManagerPolicy.FLAG_WAKE;
+        }
+        if ((keycode == KeyEvent.KEYCODE_DPAD_CENTER) || isMovementKeyTi(keycode)) {
+            flags &= ~WindowManagerPolicy.FLAG_WAKE;
         }
         return (flags
                 & (WindowManagerPolicy.FLAG_WAKE | WindowManagerPolicy.FLAG_WAKE_DROPPED)) != 0;
@@ -2321,6 +2313,9 @@ public class PhoneWindowManager implements WindowManagerPolicy {
             mScreenOn = false;
             updateOrientationListenerLp();
             updateLockScreenTimeout();
+            if (!mKeyguardMediator.isShowing()) {
+                mWasMusicActive = isMusicActive();
+            }
         }
     }
 
@@ -2426,14 +2421,13 @@ public class PhoneWindowManager implements WindowManagerPolicy {
             int menuState = mWindowManager.getKeycodeState(KeyEvent.KEYCODE_MENU);
             int sState = mWindowManager.getKeycodeState(KeyEvent.KEYCODE_S);
             int dpadState = mWindowManager.getDPadKeycodeState(KeyEvent.KEYCODE_DPAD_CENTER);
-            int trackballState = mWindowManager.getTrackballScancodeState(RawInputEvent.BTN_MOUSE);
-            mSafeMode = menuState > 0 || sState > 0 || dpadState > 0 || trackballState > 0;
+            mSafeMode = menuState > 0 || sState > 0 || dpadState > 0;
             performHapticFeedbackLw(null, mSafeMode
                     ? HapticFeedbackConstants.SAFE_MODE_ENABLED
                     : HapticFeedbackConstants.SAFE_MODE_DISABLED, true);
             if (mSafeMode) {
                 Log.i(TAG, "SAFE MODE ENABLED (menu=" + menuState + " s=" + sState
-                        + " dpad=" + dpadState + " trackball=" + trackballState + ")");
+                        + " dpad=" + dpadState + ")");
             } else {
                 Log.i(TAG, "SAFE MODE not enabled");
             }
