@@ -2299,7 +2299,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
             flags |= WindowManagerPolicy.FLAG_WAKE;
         }
         if ((keycode == KeyEvent.KEYCODE_DPAD_CENTER) || isMovementKeyTi(keycode)) {
-            flags &= ~WindowManagerPolicy.FLAG_WAKE;
+            flags |= WindowManagerPolicy.FLAG_WAKE;
         }
         return (flags
                 & (WindowManagerPolicy.FLAG_WAKE | WindowManagerPolicy.FLAG_WAKE_DROPPED)) != 0;
