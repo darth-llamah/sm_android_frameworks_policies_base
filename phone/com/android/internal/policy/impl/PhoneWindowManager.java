@@ -304,6 +304,8 @@ public class PhoneWindowManager implements WindowManagerPolicy {
             ContentResolver resolver = mContext.getContentResolver();
             resolver.registerContentObserver(Settings.System.getUriFor(
                     Settings.System.END_BUTTON_BEHAVIOR), false, this);
+            resolver.registerContentObserver(Settings.System.getUriFor(
+                    Settings.System.LOCKSCREEN_DPAD_MUSIC_CONTROLS), false, this);
             resolver.registerContentObserver(Settings.Secure.getUriFor(
                     Settings.Secure.INCALL_POWER_BUTTON_BEHAVIOR), false, this);
             resolver.registerContentObserver(Settings.System.getUriFor(
@@ -677,7 +679,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
             mFancyRotationAnimation = Settings.System.getInt(resolver,
                     "fancy_rotation_anim", 0) != 0 ? 0x80 : 0;
             mDpadMusicControls = (Settings.System.getInt(mContext.getContentResolver(),
-                    Settings.System.LOCKSCREEN_DPAD_MUSIC_CONTROLS, 1) == 1);
+                    Settings.System.LOCKSCREEN_DPAD_MUSIC_CONTROLS, 0) == 1);
             int accelerometerDefault = Settings.System.getInt(resolver,
                     Settings.System.ACCELEROMETER_ROTATION, DEFAULT_ACCELEROMETER_ROTATION);
             if (mAccelerometerDefault != accelerometerDefault) {
@@ -2208,8 +2210,8 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                         sendMediaButtonEvent(KeyEvent.KEYCODE_MEDIA_NEXT);
                         break;
                 }
-            } else if (down && keyguardActive && code == KeyEvent.KEYCODE_DPAD_CENTER
-                    && (mWasMusicActive || isMusicActive())) {
+            } else if (down && keyguardActive && code == KeyEvent.KEYCODE_DPAD_CENTER && mDpadMusicControls &&
+                    (mWasMusicActive || isMusicActive())) {
                 mWasMusicActive = true;
                 sendMediaButtonEvent(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE);
                 result = ACTION_PASS_TO_USER;
@@ -2297,8 +2299,9 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         int flags = event.flags;
         if (keycode == KeyEvent.KEYCODE_HOLD) {
             flags |= WindowManagerPolicy.FLAG_WAKE;
-        }
-        if ((keycode == KeyEvent.KEYCODE_DPAD_CENTER) || isMovementKeyTi(keycode)) {
+        } else if ((keycode == KeyEvent.KEYCODE_DPAD_CENTER) || isMovementKeyTi(keycode) && mDpadMusicControls) {
+            flags &= ~WindowManagerPolicy.FLAG_WAKE;
+        } else {
             flags |= WindowManagerPolicy.FLAG_WAKE;
         }
         return (flags
