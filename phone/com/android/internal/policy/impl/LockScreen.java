@@ -113,8 +113,8 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
 
     private String mNextAlarm = null;
     private Drawable mAlarmIcon = null;
-    private String mCharging = null;
-    private Drawable mChargingIcon = null;
+    private String mBatteryString = null;
+    private Drawable mBatteryIcon = null;
 
     private boolean mSilentMode;
     private AudioManager mAudioManager;
@@ -672,23 +672,28 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
 
     private void refreshBatteryStringAndIcon() {
         if (!mShowingBatteryInfo) {
-            mCharging = null;
+            mBatteryString = null;
             return;
-        }
-
-        if (mChargingIcon == null) {
-            mChargingIcon =
-                    getContext().getResources().getDrawable(R.drawable.ic_lock_idle_charging);
         }
 
         if (mPluggedIn) {
             if (mBatteryLevel >= 100) {
-                mCharging = getContext().getString(R.string.lockscreen_charged);
+                mBatteryString = getContext().getString(R.string.lockscreen_charged);
             } else {
-                mCharging = getContext().getString(R.string.lockscreen_plugged_in, mBatteryLevel);
+                mBatteryString = getContext().getString(R.string.lockscreen_plugged_in, mBatteryLevel);
             }
+            mBatteryIcon =
+                    getContext().getResources().getDrawable(R.drawable.ic_lock_idle_charging);
         } else {
-            mCharging = getContext().getString(R.string.lockscreen_low_battery);
+            if (mBatteryLevel > KeyguardUpdateMonitor.LOW_BATTERY_THRESHOLD) {
+                mBatteryString = getContext().getString(R.string.lockscreen_discharging, mBatteryLevel);
+                mBatteryIcon =
+                        getContext().getResources().getDrawable(R.drawable.ic_lock_idle_discharging);
+            } else {
+                mBatteryString = getContext().getString(R.string.lockscreen_low_battery);
+                mBatteryIcon =
+                        getContext().getResources().getDrawable(R.drawable.ic_lock_idle_low_battery);
+            }
         }
     }
     private void refreshMusicStatus() {
@@ -736,33 +741,29 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
     }
 
     private void updateStatusLines() {
-        if (!mStatus.showStatusLines()
-                || (mCharging == null && mNextAlarm == null)) {
-            mStatus1.setVisibility(View.INVISIBLE);
-            mStatus2.setVisibility(View.INVISIBLE);
-        } else if (mCharging != null && mNextAlarm == null) {
-            // charging only
+        if (!mStatus.showStatusLines()) {
+            return;
+        }
+        if (mBatteryString != null) {
             mStatus1.setVisibility(View.VISIBLE);
+            mStatus1.setText(mBatteryString);
+            mStatus1.setCompoundDrawablesWithIntrinsicBounds(mBatteryIcon, null, null, null);
+            if (mNextAlarm != null) {
+                mStatus2.setVisibility(View.VISIBLE);
+                mStatus2.setText(mNextAlarm);
+                mStatus2.setCompoundDrawablesWithIntrinsicBounds(mAlarmIcon, null, null, null);
+            } else {
+                mStatus2.setVisibility(View.INVISIBLE);
+            }
+        } else {
+            if (mNextAlarm != null) {
+                mStatus1.setVisibility(View.VISIBLE);
+                mStatus1.setText(mNextAlarm);
+                mStatus1.setCompoundDrawablesWithIntrinsicBounds(mAlarmIcon, null, null, null);
+            } else {
+                mStatus1.setVisibility(View.INVISIBLE);
+            }     
             mStatus2.setVisibility(View.INVISIBLE);
-
-            mStatus1.setText(mCharging);
-            mStatus1.setCompoundDrawablesWithIntrinsicBounds(mChargingIcon, null, null, null);
-        } else if (mNextAlarm != null && mCharging == null) {
-            // next alarm only
-            mStatus1.setVisibility(View.VISIBLE);
-            mStatus2.setVisibility(View.INVISIBLE);
-
-            mStatus1.setText(mNextAlarm);
-            mStatus1.setCompoundDrawablesWithIntrinsicBounds(mAlarmIcon, null, null, null);
-        } else if (mCharging != null && mNextAlarm != null) {
-            // both charging and next alarm
-            mStatus1.setVisibility(View.VISIBLE);
-            mStatus2.setVisibility(View.VISIBLE);
-
-            mStatus1.setText(mCharging);
-            mStatus1.setCompoundDrawablesWithIntrinsicBounds(mChargingIcon, null, null, null);
-            mStatus2.setText(mNextAlarm);
-            mStatus2.setCompoundDrawablesWithIntrinsicBounds(mAlarmIcon, null, null, null);
         }
     }
 

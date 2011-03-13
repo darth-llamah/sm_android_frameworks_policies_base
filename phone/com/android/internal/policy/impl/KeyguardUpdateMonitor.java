@@ -62,7 +62,8 @@ public class KeyguardUpdateMonitor {
     static private final String TAG = "KeyguardUpdateMonitor";
     static private final boolean DEBUG = false;
 
-    private static final int LOW_BATTERY_THRESHOLD = 20;
+    // Public for Lockscreen.java
+    public static final int LOW_BATTERY_THRESHOLD = 20;
 
     private final Context mContext;
 
@@ -75,6 +76,8 @@ public class KeyguardUpdateMonitor {
     private boolean mDeviceProvisioned;
 
     private int mBatteryLevel;
+
+    private boolean mLockAlwaysBatteryInfo;
 
     private CharSequence mTelephonyPlmn;
     private CharSequence mTelephonySpn;
@@ -173,6 +176,9 @@ public class KeyguardUpdateMonitor {
         mDeviceProvisioned = Settings.Secure.getInt(
                 mContext.getContentResolver(), Settings.Secure.DEVICE_PROVISIONED, 0) != 0;
 
+        mLockAlwaysBatteryInfo = Settings.System.getInt(
+                mContext.getContentResolver(), Settings.System.LOCKSCREEN_ALWAYS_BATTERY_INFO, 0) != 0;
+
         // Since device can't be un-provisioned, we only need to register a content observer
         // to update mDeviceProvisioned when we are...
         if (!mDeviceProvisioned) {
@@ -200,6 +206,17 @@ public class KeyguardUpdateMonitor {
             mDeviceProvisioned = Settings.Secure.getInt(mContext.getContentResolver(),
                 Settings.Secure.DEVICE_PROVISIONED, 0) != 0;
         }
+
+        mContext.getContentResolver().registerContentObserver(
+            Settings.System.getUriFor(Settings.System.LOCKSCREEN_ALWAYS_BATTERY_INFO),
+            false, new ContentObserver(mHandler) {
+                @Override
+                public void onChange(boolean selfChange) {
+                    super.onChange(selfChange);
+                    mLockAlwaysBatteryInfo = Settings.System.getInt(
+                        mContext.getContentResolver(), Settings.System.LOCKSCREEN_ALWAYS_BATTERY_INFO, 0) != 0;
+                }
+        });
 
         // take a guess to start
         mSimState = IccCard.State.READY;
@@ -351,6 +368,8 @@ public class KeyguardUpdateMonitor {
             // not plugged in and below threshold
             if (batteryLevel < LOW_BATTERY_THRESHOLD && batteryLevel != mBatteryLevel) {
                 return true;
+            } else if (mLockAlwaysBatteryInfo && batteryLevel != mBatteryLevel){
+                return true;
             }
         }
         return false;
@@ -493,7 +512,7 @@ public class KeyguardUpdateMonitor {
     }
 
     public boolean shouldShowBatteryInfo() {
-        return mDevicePluggedIn || mBatteryLevel < LOW_BATTERY_THRESHOLD;
+        return mDevicePluggedIn || mBatteryLevel < LOW_BATTERY_THRESHOLD || mLockAlwaysBatteryInfo;
     }
 
     public CharSequence getTelephonyPlmn() {
