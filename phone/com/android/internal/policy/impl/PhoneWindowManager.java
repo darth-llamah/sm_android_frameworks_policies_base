@@ -2299,11 +2299,11 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         int flags = event.flags;
         if (keycode == KeyEvent.KEYCODE_HOLD) {
             flags |= WindowManagerPolicy.FLAG_WAKE;
-        } else if ((keycode == KeyEvent.KEYCODE_DPAD_CENTER) || isMovementKeyTi(keycode) && mDpadMusicControls) {
+        } else if ((keycode == KeyEvent.KEYCODE_DPAD_CENTER || isMovementKeyTi(keycode)) && mDpadMusicControls) {
             flags &= ~WindowManagerPolicy.FLAG_WAKE;
-        } else {
-            flags |= WindowManagerPolicy.FLAG_WAKE;
-        }
+        } //else {
+            //flags |= WindowManagerPolicy.FLAG_WAKE;
+        //}
         return (flags
                 & (WindowManagerPolicy.FLAG_WAKE | WindowManagerPolicy.FLAG_WAKE_DROPPED)) != 0;
     }
