@@ -750,7 +750,7 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
         mNowPlaying.setVisibility(View.GONE);
         mAlbumArt.setVisibility(View.GONE);
 
-        if (am.isMusicActive() && !nowPlaying.equals("") && mLockMusicControls
+        if (am.isMusicActive() && !nowPlaying.equals("")
                 && mCreationOrientation == Configuration.ORIENTATION_PORTRAIT) {
             if (mNowPlayingToggle)
                 mNowPlaying.setVisibility(View.VISIBLE);
