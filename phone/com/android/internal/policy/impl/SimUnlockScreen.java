@@ -421,4 +421,8 @@ public class SimUnlockScreen extends LinearLayout implements KeyguardScreen, Vie
     public void onTimeChanged() {
 
     }
+
+    public void onMusicChanged() {
+
+    }
 }
