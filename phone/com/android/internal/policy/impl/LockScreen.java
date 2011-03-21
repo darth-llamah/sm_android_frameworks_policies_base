@@ -153,9 +153,9 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
             Settings.System.LOCKSCREEN_ROTARY_UNLOCK_DOWN, 0) == 1);
     private boolean mRotaryHideArrows = (Settings.System.getInt(mContext.getContentResolver(),
             Settings.System.LOCKSCREEN_ROTARY_HIDE_ARROWS, 0) == 1);
-    private int mLockscreenStyle = (Settings.System.getInt(mContext.getContentResolver(),
-         Settings.System.LOCKSCREEN_STYLE_PREF, 1));
-    private boolean mUseRotaryLockscreen = (mLockscreenStyle == 2);
+    private int mLockscreenMode = (Settings.System.getInt(mContext.getContentResolver(),
+         Settings.System.LOCKSCREEN_MODE, 1));
+    private boolean mUseRotaryLockscreen = (mLockscreenMode == 2);
     private double mGestureSensitivity;
     private boolean mGestureTrail;
     private boolean mGestureActive;
