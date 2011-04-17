@@ -62,8 +62,7 @@ public class KeyguardUpdateMonitor {
     static private final String TAG = "KeyguardUpdateMonitor";
     static private final boolean DEBUG = false;
 
-    // Public for Lockscreen.java
-    public static final int LOW_BATTERY_THRESHOLD = 20;
+    private static final int LOW_BATTERY_THRESHOLD = 20;
 
     private final Context mContext;
 
@@ -76,8 +75,6 @@ public class KeyguardUpdateMonitor {
     private boolean mDeviceProvisioned;
 
     private int mBatteryLevel;
-
-    private boolean mLockAlwaysBatteryInfo;
 
     private CharSequence mTelephonyPlmn;
     private CharSequence mTelephonySpn;
@@ -97,7 +94,6 @@ public class KeyguardUpdateMonitor {
     private static final int MSG_SIM_STATE_CHANGE = 304;
     private static final int MSG_RINGER_MODE_CHANGED = 305;
     private static final int MSG_PHONE_STATE_CHANGED = 306;
-    private static final int MSG_MUSIC_SONG_CHANGE = 307;
 
 
     /**
@@ -167,9 +163,6 @@ public class KeyguardUpdateMonitor {
                     case MSG_PHONE_STATE_CHANGED:
                         handlePhoneStateChanged((String)msg.obj);
                         break;
-                    case MSG_MUSIC_SONG_CHANGE:
-                        handleSongUpdate();
-                        break;
                 }
             }
         };
@@ -179,9 +172,6 @@ public class KeyguardUpdateMonitor {
 
         mDeviceProvisioned = Settings.Secure.getInt(
                 mContext.getContentResolver(), Settings.Secure.DEVICE_PROVISIONED, 0) != 0;
-
-        mLockAlwaysBatteryInfo = Settings.System.getInt(
-                mContext.getContentResolver(), Settings.System.LOCKSCREEN_ALWAYS_BATTERY_INFO, 0) != 0;
 
         // Since device can't be un-provisioned, we only need to register a content observer
         // to update mDeviceProvisioned when we are...
@@ -211,17 +201,6 @@ public class KeyguardUpdateMonitor {
                 Settings.Secure.DEVICE_PROVISIONED, 0) != 0;
         }
 
-        mContext.getContentResolver().registerContentObserver(
-            Settings.System.getUriFor(Settings.System.LOCKSCREEN_ALWAYS_BATTERY_INFO),
-            false, new ContentObserver(mHandler) {
-                @Override
-                public void onChange(boolean selfChange) {
-                    super.onChange(selfChange);
-                    mLockAlwaysBatteryInfo = Settings.System.getInt(
-                        mContext.getContentResolver(), Settings.System.LOCKSCREEN_ALWAYS_BATTERY_INFO, 0) != 0;
-                }
-        });
-
         // take a guess to start
         mSimState = IccCard.State.READY;
         mDevicePluggedIn = true;
@@ -239,7 +218,6 @@ public class KeyguardUpdateMonitor {
         filter.addAction(TelephonyManager.ACTION_PHONE_STATE_CHANGED);
         filter.addAction(SPN_STRINGS_UPDATED_ACTION);
         filter.addAction(AudioManager.RINGER_MODE_CHANGED_ACTION);
-        filter.addAction("internal.policy.impl.updateSongStatus");
         context.registerReceiver(new BroadcastReceiver() {
 
             public void onReceive(Context context, Intent intent) {
@@ -273,8 +251,6 @@ public class KeyguardUpdateMonitor {
                 } else if (TelephonyManager.ACTION_PHONE_STATE_CHANGED.equals(action)) {
                     String state = intent.getStringExtra(TelephonyManager.EXTRA_STATE);
                     mHandler.sendMessage(mHandler.obtainMessage(MSG_PHONE_STATE_CHANGED, state));
-                } else if ("internal.policy.impl.updateSongStatus".equals(action)){
-                    mHandler.sendMessage(mHandler.obtainMessage(MSG_MUSIC_SONG_CHANGE));
                 }
             }
         }, filter);
@@ -353,16 +329,6 @@ public class KeyguardUpdateMonitor {
     }
 
     /**
-     * Handle {@link #MSG_MUSIC_SONG_CHANGED}
-     */
-    private void handleSongUpdate() {
-        for (int i = 0; i< mInfoCallbacks.size(); i++) {
-            mInfoCallbacks.get(i).onMusicChanged();
-        }
-    }
-
-
-    /**
      * @param status One of the statuses of {@link android.os.BatteryManager}
      * @return Whether the status maps to a status for being plugged in.
      */
@@ -384,8 +350,6 @@ public class KeyguardUpdateMonitor {
         if (!pluggedIn) {
             // not plugged in and below threshold
             if (batteryLevel < LOW_BATTERY_THRESHOLD && batteryLevel != mBatteryLevel) {
-                return true;
-            } else if (mLockAlwaysBatteryInfo && batteryLevel != mBatteryLevel){
                 return true;
             }
         }
@@ -469,8 +433,6 @@ public class KeyguardUpdateMonitor {
          * {@link TelephonyManager#EXTRA_STATE_OFFHOOK
          */
         void onPhoneStateChanged(String newState);
-
-        void onMusicChanged();
     }
 
     /**
@@ -531,7 +493,7 @@ public class KeyguardUpdateMonitor {
     }
 
     public boolean shouldShowBatteryInfo() {
-        return mDevicePluggedIn || mBatteryLevel < LOW_BATTERY_THRESHOLD || mLockAlwaysBatteryInfo;
+        return mDevicePluggedIn || mBatteryLevel < LOW_BATTERY_THRESHOLD;
     }
 
     public CharSequence getTelephonyPlmn() {

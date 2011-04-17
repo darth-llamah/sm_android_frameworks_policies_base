@@ -569,6 +569,7 @@ public class LockPatternKeyguardView extends KeyguardViewBase {
     View createLockScreen() {
         return new LockScreen(
                 mContext,
+                mConfiguration,
                 mLockPatternUtils,
                 mUpdateMonitor,
                 mKeyguardScreenCallback);
